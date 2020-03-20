@@ -2,6 +2,7 @@
 #define _USE_MATH_DEFINES
 
 #include <iostream>
+#include <iomanip>
 #include <math.h>
 #include <random>
 #include <vector>
@@ -9,11 +10,13 @@
 #include <fstream>
 #include <iomanip>
 #include "structures.h"
+// LAStools
 #include "lasreader.hpp"
 #include "laswriter.hpp"
 
-#define DEBUG true
+#define DEBUG false
 
+// Check if point x lies between points a and b
 bool between(Point* a, Point* b, Point* x) {
 	double ax = (a->x - x->x) * (a->x - x->x) + (a->y - x->y) * (a->y - x->y);
 	double bx = (b->x - x->x) * (b->x - x->x) + (b->y - x->y) * (b->y - x->y);
@@ -22,6 +25,7 @@ bool between(Point* a, Point* b, Point* x) {
 	return sqrt(ax) + sqrt(bx) == sqrt(ab);
 }
 
+// Get triangle faces from Delaunay tree
 void getFaces(Node *node, std::vector<Face>& faces, Point *points) {
 	if (node->processed)
 		return;
@@ -41,6 +45,7 @@ void getFaces(Node *node, std::vector<Face>& faces, Point *points) {
 	}
 }
 
+// Save mesh as .obj
 void saveObj(std::string filename, Point *points, int numPoints, std::vector<Face>& faces) {
 	std::ofstream file;
 	file.open(filename);
@@ -66,36 +71,30 @@ int main() {
 	lasreadopener.set_file_name("GK_462_100.laz");
 	LASreader* lasreader = lasreadopener.open();
 
-	int maxPoints = 10000; // (int)lasreader->npoints;
-	int numPoints = 0;
-	Point* points = new Point[maxPoints];
+	int numPoints = (int)lasreader->npoints;
+	Point* points = new Point[numPoints];
 
-	for (int i = 0; i < maxPoints && lasreader->read_point(); ++i) {
+	for (int i = 0; i < numPoints && lasreader->read_point(); ++i) {
+		// Print progress
+		if (i % 10000 == 0) {
+			printf("%.2f%%\r", 100.f * (float)i / (float)numPoints);
+			fflush(stdout);
+		}
+
 		// Convert from centimeters to meters
-		double x = (double)lasreader->point.X / 100.;
-		double y = (double)lasreader->point.Y / 100.;
-		double z = (double)lasreader->point.Z / 100.;
-		
-		// Remove duplicates, keep the highest z value
-		bool duplicate = false;
-		for (int j = 0; j < numPoints; ++j) {
-			if (points[j].x == x && points[j].y == y) {
-				if (z > points[j].z)
-					points[j].z = z;
-				duplicate = true;
-				break;
-			}
-		}
-		if (!duplicate) {
-			points[numPoints] = Point(x, y, z, numPoints);
-			++numPoints;
-		}
+		points[i] = Point(
+			(double)lasreader->point.X / 100.,
+			(double)lasreader->point.Y / 100.,
+			(double)lasreader->point.Z / 100.,
+			i
+		);
 	}
 	
 	lasreader->close();
 	delete lasreader;
 
-	// Shuffle points
+
+	// Shuffle points (if points are random, average O(1) edge flips)
 	std::cout << "Shuffling points ..." << std::endl;
 	std::random_device dev;
 	std::mt19937 rng(dev());
@@ -113,6 +112,7 @@ int main() {
 			points[j].idx = j;
 		}
 	}
+
 
 	// Get min, max and span
 	std::cout << "Adjusting points ..." << std::endl;
@@ -138,6 +138,10 @@ int main() {
 	}
 	xMax -= xMin; yMax -= yMin; zMax -= zMin;
 	xMin = 0.; yMin = 0.; zMin = 0.;
+
+
+	// Triangulation
+	std::cout << "Triangulating points ..." << std::endl;
 
 	// Create bounding triangle
 	double hBound = (tan(M_PI / 3.) * xSpan / 2.) + ySpan;
@@ -170,11 +174,16 @@ int main() {
 	}
 
 	// Delaunay tree (DT)
-	std::cout << "Triangulating points ..." << std::endl;
 	Node* root = new Node(&p0Bound, &p1Bound, &p2Bound);
 
 	// Incrementally add points to DT
 	for (int iPoint = 0; iPoint < numPoints; ++iPoint) {
+		// Print progress
+		if (iPoint % 10000 == 0) {
+			printf("%.2f%%\r", 100.f * (float)iPoint / (float)numPoints);
+			fflush(stdout);
+		}
+
 		// Find triangle in which the point lies
 		Point* p = &(points[iPoint]);
 		Node* n = root;
@@ -186,13 +195,15 @@ int main() {
 			else {
 				std::cout << "ERROR: Point " << iPoint << " not inside any triangle!" << std::endl;
 				std::cout << "Parent: " << n->tri.isInside(p, w) << ", " << n->tri.p0->idx << " " << n->tri.p1->idx << " " << n->tri.p2->idx << std::endl;
-				std::cout << "Child 1: " << n->child[0]->tri.isInside(p, w) << ", " << n->child[0]->tri.p0->idx << " " << n->child[0]->tri.p1->idx << " " << n->child[0]->tri.p2->idx << std::endl;
-				std::cout << "Child 2: " << n->child[1]->tri.isInside(p, w) << ", " << n->child[1]->tri.p0->idx << " " << n->child[1]->tri.p1->idx << " " << n->child[1]->tri.p2->idx << std::endl;
+				std::cout << "Child 1: " << n->child[0]->tri.isInside(p, w) << ", " << n->child[0]->tri.p0->idx << " " << n->child[0]->tri.p1->idx << " " << n->child[0]->tri.p2->idx;
+				std::cout << "; " << w[0] << ", " << w[1] << ", " << w[2] << std::endl;
+				std::cout << "Child 2: " << n->child[1]->tri.isInside(p, w) << ", " << n->child[1]->tri.p0->idx << " " << n->child[1]->tri.p1->idx << " " << n->child[1]->tri.p2->idx;
+				std::cout << "; " << w[0] << ", " << w[1] << ", " << w[2] << std::endl;
 				if (n->child[2] != nullptr)
 					std::cout << "Child 3: " << n->child[2]->tri.isInside(p, w) << ", " << n->child[2]->tri.p0->idx << " " << n->child[2]->tri.p1->idx << " " << n->child[2]->tri.p2->idx << std::endl;
 
 				bool check = n->tri.isInside(n->child[0]->tri.p[0], w);
-				std::cout << check << " : " << w[0] << ", " << w[1] << ", " << w[2] << std::endl;
+				std::cout << check << "Common point: " << w[0] << ", " << w[1] << ", " << w[2] << std::endl;
 
 				return 1;
 			}
@@ -202,10 +213,11 @@ int main() {
 			if (n->child[0] != nullptr || n->child[1] != nullptr || n->child[2] != nullptr) {
 				std::cout << "ERROR: Child exitence mismatch" << std::endl;
 			}
-			if (w[0] == 0. && w[1] == 0. || w[0] == 0. && w[2] == 0. || w[1] == 0. && w[2] == 0.) {
-				std::cout << "ERROR: Point " << iPoint << " lies on vertex of triangle!" << std::endl;
-				return 1;
-			}
+		}
+
+		// Check if point already exists
+		if (n != root && w[0] == 0. && w[1] == 0. || w[0] == 0. && w[2] == 0. || w[1] == 0. && w[2] == 0.) {
+			continue;
 		}
 
 		// Add point to triangle

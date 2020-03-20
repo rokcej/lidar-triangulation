@@ -2,6 +2,8 @@
 
 #include <iostream>
 
+#define TOL (1e-8)
+
 inline int M1(const int& x) { return (x + 1) % 3; }
 inline int M2(const int& x) { return (x + 2) % 3; }
 
@@ -36,9 +38,8 @@ public:
 		w[2] = sign * (p0->x * p1->y - p0->y * p1->x + (p0->y - p1->y) * q->x + (p1->x - p0->x) * q->y);
 		w[0] = (2. * area * sign) - w[1] - w[2];
 
-		double tol = 1e-11;
 		for (int i = 0; i < 3; ++i) {
-			if (w[i] < tol && w[i] > -tol)
+			if (w[i] < TOL && w[i] > -TOL)
 				w[i] = 0.;
 		}
 		
@@ -59,7 +60,7 @@ public:
 			(d2x * d2x + d2y * d2y) * (d0x * d1y - d1x * d0y)
 		);
 
-		return det > 0;
+		return det > -TOL;
 	}
 };
 
