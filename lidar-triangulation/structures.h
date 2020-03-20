@@ -14,7 +14,7 @@ struct Face {
 };
 
 struct Point {
-	double x, y, z;
+	double x = 0., y = 0., z = 0.;
 	int idx = -1;
 
 	Point() {}
@@ -32,6 +32,7 @@ public:
 	}
 	Triangle(Triangle* t) : Triangle(t->p0, t->p1, t->p2) {}
 
+	// Check if point q is inside of the triangle, store barycentric coordinates in w
 	int isInside(Point *q, double *w) { // https://stackoverflow.com/questions/2049582/how-to-determine-if-a-point-is-in-a-2d-triangle
 		double sign = area >= 0 ? +1. : -1.;
 		w[1] = sign * (p0->y * p2->x - p0->x * p2->y + (p2->y - p0->y) * q->x + (p0->x - p2->x) * q->y);
@@ -46,6 +47,7 @@ public:
 		return w[0] >= 0. && w[1] >= 0. && w[2] >= 0.;
 	}
 
+	// Check if point q lies in circumscribed circle of the triangle
 	bool inCircle(Point* q) { // https://stackoverflow.com/questions/39984709/how-can-i-check-wether-a-point-is-inside-the-circumcircle-of-3-points
 		double d0x = p[0]->x - q->x;
 		double d0y = p[0]->y - q->y;
@@ -75,6 +77,7 @@ public:
 
 	Node(Point* p0, Point* p1, Point* p2) : tri{ p0, p1, p2 } {}
 
+	// Split triangle into 2 triangles based on point p, which lies on one of the edges
 	void split2(Point* p, int edge) {
 		_split2(p, edge);
 
@@ -89,6 +92,7 @@ public:
 		}
 	}
 
+	// Find which edge is connected to n
 	int getEdge(Node* n) {
 		for (int i = 0; i < 3; ++i) {
 			if (neighbor[i] == n)
@@ -98,7 +102,8 @@ public:
 		return -1;
 	}
 
-	void updateNeigbors(Node *parent) { // Make sure neighbours are connected back to this node instead of its parent
+	// Make sure neighbours are connected back to this node instead of its parent
+	void updateNeigbors(Node *parent) {
 		for (int in = 0; in < 3; ++in) {
 			if (neighbor[in] != nullptr) {
 				for (int inn = 0; inn < 3; ++inn) {
@@ -111,6 +116,7 @@ public:
 		}
 	}
 
+	// Validate edge, flip if it's illegal
 	void validate(int edge) {
 		if (neighbor[edge] == nullptr)
 			return;
