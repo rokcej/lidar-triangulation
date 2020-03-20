@@ -15,6 +15,7 @@
 #include "laswriter.hpp"
 
 #define DEBUG false
+#define MAX_POINTS 1000000 // Set to 0 to disable limit
 
 // Check if point x lies between points a and b
 bool between(Point* a, Point* b, Point* x) {
@@ -72,6 +73,7 @@ int main() {
 	LASreader* lasreader = lasreadopener.open();
 
 	int numPoints = (int)lasreader->npoints;
+	if (MAX_POINTS > 0) numPoints = MAX_POINTS;
 	Point* points = new Point[numPoints];
 
 	for (int i = 0; i < numPoints && lasreader->read_point(); ++i) {
@@ -211,7 +213,7 @@ int main() {
 
 		if (DEBUG) {
 			if (n->child[0] != nullptr || n->child[1] != nullptr || n->child[2] != nullptr) {
-				std::cout << "ERROR: Child exitence mismatch" << std::endl;
+				std::cout << "ERROR: Child existence mismatch" << std::endl;
 			}
 		}
 
