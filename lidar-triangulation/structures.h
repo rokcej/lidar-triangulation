@@ -1,9 +1,14 @@
 #pragma once
 
+struct Face {
+	int v1, v2, v3;
+
+	Face(int v1, int v2, int v3) : v1{ v1 }, v2{ v2 }, v3{ v3 } {}
+};
+
 struct Point {
 	double x, y, z;
 };
-
 
 class Triangle {
 public:
@@ -18,8 +23,8 @@ public:
 
 	int isInside(Point *p, double *w) { // https://stackoverflow.com/questions/2049582/how-to-determine-if-a-point-is-in-a-2d-triangle
 		double sign = area >= 0 ? +1. : -1.;
-		w[1] = sign * (float)(p0->y * p2->x - p0->x * p2->y + (p2->y - p0->y) * p->x + (p0->x - p2->x) * p->y);
-		w[2] = sign * (float)(p0->x * p1->y - p0->y * p1->x + (p0->y - p1->y) * p->x + (p1->x - p0->x) * p->y);
+		w[1] = sign * (p0->y * p2->x - p0->x * p2->y + (p2->y - p0->y) * p->x + (p0->x - p2->x) * p->y);
+		w[2] = sign * (p0->x * p1->y - p0->y * p1->x + (p0->y - p1->y) * p->x + (p1->x - p0->x) * p->y);
 		w[0] = (2.f * area * sign) - w[1] - w[2];
 		
 		return w[0] >= 0. && w[1] >= 0. && w[2] >= 0.;
@@ -32,6 +37,8 @@ public:
 	bool hasChildren = false;
 	Node* child[3] = { nullptr };
 	Node* neighbor[3] = { nullptr };
+
+	bool processed = false;
 
 	Node(Point* p0, Point* p1, Point* p2) : tri{ p0, p1, p2 } {}
 

@@ -3,6 +3,9 @@
 
 #include <iostream>
 #include <math.h>
+#include <vector>
+#include <string>
+#include <fstream>
 #include "structures.h"
 #include "lasreader.hpp"
 #include "laswriter.hpp"
@@ -12,28 +15,81 @@
 inline int M1(const int& x) { return (x + 1) % 3; }
 inline int M2(const int& x) { return (x + 2) % 3; }
 
+void getFaces(Node* node, std::vector<Face> faces, Point *points) {
+	if (node->processed)
+		return;
+	node->processed = true;
+
+	if (node->hasChildren) {
+		getFaces(node->child[0], faces, points);
+		getFaces(node->child[1], faces, points);
+		if (node->child[2] != nullptr)
+			getFaces(node->child[2], faces, points);
+	} else {
+		faces.emplace_back(
+			(int)(node->tri.p[0] - points),
+			(int)(node->tri.p[1] - points),
+			(int)(node->tri.p[2] - points)
+		);
+	}
+}
+
+void saveObj(std::string filename, Point *points, int numPoints, std::vector<Face> faces) {
+	std::ofstream file;
+	file.open(filename);
+
+	// Vertices
+	for (int i = 0; i < numPoints; ++i) {
+		file << "v " << points[i].x << " " << points[i].y << " " << points[i].z << std::endl;
+	}
+	file << std::endl;
+	// Faces
+	for (int i = 0; i < faces.size(); ++i) {
+		file << "f " << faces[i].v1 + 1 << " " << faces[i].v2 + 1 << " " << faces[i].v3 + 1 << std::endl;
+	}
+	file << std::endl;
+
+	file.close();
+}
+
 int main() {
 	// Read LiDAR data
+	std::cout << "Reading data ..." << std::endl;
 	LASreadOpener lasreadopener;
 	lasreadopener.set_file_name("GK_462_100.laz");
 	LASreader* lasreader = lasreadopener.open();
 
-	int numPoints = 10000; // (int)lasreader->npoints;
-	Point* points = new Point[numPoints];
+	int maxPoints = 10000; // (int)lasreader->npoints;
+	int numPoints = 0;
+	Point* points = new Point[maxPoints];
 
-	for (int i = 0; i < numPoints && lasreader->read_point(); ++i) {
+	for (int i = 0; i < maxPoints && lasreader->read_point(); ++i) {
 		// Convert from centimeters to meters
-		points[i].x = (double)lasreader->point.X / 100.;
-		points[i].y = (double)lasreader->point.Y / 100.;
-		points[i].z = (double)lasreader->point.Z / 100.;
+		double x = (double)lasreader->point.X / 100.;
+		double y = (double)lasreader->point.Y / 100.;
+		double z = (double)lasreader->point.Z / 100.;
+		
+		// Remove duplicates, keep the highest z value
+		bool duplicate = false;
+		for (int j = 0; j < numPoints; ++j) {
+			if (points[j].x == x && points[j].y == y) {
+				if (z > points[j].z)
+					points[j].z = z;
+				duplicate = true;
+				break;
+			}
+		}
+
+		if (!duplicate) {
+			points[numPoints].x = x;
+			points[numPoints].y = y;
+			points[numPoints].z = z;
+			++numPoints;
+		}
 	}
 
 	lasreader->close();
 	delete lasreader;
-
-	for (int i = 0; i < numPoints; ++i) {
-
-	}
 
 	// Get min, max and span
 	double xMin = points[0].x, xMax = points[0].x;
@@ -61,14 +117,15 @@ int main() {
 
 	// Create bounding triangle
 	double hBound = (tan(M_PI / 3.) * xSpan / 2.) + ySpan;
-	double wBound = 2. * hBound / tan(M_PI / 3.);
-	Point p0Bound = { xMin - (wBound - xSpan) / 2. - 1., yMin - 1., 0. };
-	Point p1Bound = { xMax + (wBound - xSpan) / 2. + 1., yMin - 1., 0. };
-	Point p2Bound = { (xMin + xMax) / 2., yMax + hBound - ySpan + 1., 0. };
+	double wBound = 2. * hBound / tan(M_PI / 3.);         
+	Point p0Bound = { xMin - (wBound - xSpan) / 2. - (wBound), yMin - (hBound), 0. };
+	Point p1Bound = { xMax + (wBound - xSpan) / 2. + (wBound), yMin - (hBound), 0. };
+	Point p2Bound = { (xMin + xMax) / 2., yMax + hBound - ySpan + (hBound), 0. };
 	Triangle triBound(&p0Bound, &p1Bound, &p2Bound);
 
 	// Test bounding triangle
 	if (DEBUG) {
+		std::cout << "Testing data ..." << std::endl;
 		for (int i = 0; i < numPoints; ++i) {
 			double w[3];
 			if (!triBound.isInside(&points[i], w) || w[0] == 0.0 || w[1] == 0.0 || w[2] == 0.0) {
@@ -89,6 +146,7 @@ int main() {
 	}
 
 	// Delaunay tree (DT)
+	std::cout << "Triangulating points ..." << std::endl;
 	Node* root = new Node(&p0Bound, &p1Bound, &p2Bound);
 
 	// Incrementally add points to DT
@@ -98,8 +156,8 @@ int main() {
 		Node* n = root;
 		double w[3];
 		while (n->hasChildren) {
-			if (n->child[0] != nullptr && n->child[0]->tri.isInside(p, w)) n = n->child[0];
-			else if (n->child[1] != nullptr && n->child[1]->tri.isInside(p, w)) n = n->child[1];
+			if (n->child[0]->tri.isInside(p, w)) n = n->child[0];
+			else if (n->child[1]->tri.isInside(p, w)) n = n->child[1];
 			else if (n->child[2] != nullptr && n->child[2]->tri.isInside(p, w)) n = n->child[2];
 			else {
 				std::cout << "ERROR: Point not inside any triangle!" << std::endl;
@@ -150,6 +208,18 @@ int main() {
 		}
 		n->hasChildren = true;
 	}
+	
+	// Extract triangles
+	std::cout << "Extracting mesh ..." << std::endl;
+	std::vector<Face> faces;
+	getFaces(root, faces, points);
+
+	// Export mesh
+	std::cout << "Saving .obj file ..." << std::endl;
+	saveObj("mesh.obj", points, numPoints, faces);
+
+
+	std::cout << "Done!" << std::endl;
 
 	return 0;
 }
