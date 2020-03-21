@@ -24,31 +24,28 @@ struct Point {
 class Triangle {
 public:
 	Point *p[3];
-	Point *p0, *p1, *p2;
 	double area; // Signed area
 
-	Triangle(Point* p0, Point* p1, Point* p2) : p{ p0, p1, p2 }, p0 { p0 }, p1{ p1 }, p2{ p2 } {
+	Triangle(Point* p0, Point* p1, Point* p2) : p{ p0, p1, p2 } {
 		this->area = 0.5f * (-p1->y * p2->x + p0->y * (-p1->x + p2->x) + p0->x * (p1->y - p2->y) + p1->x * p2->y);
 	}
-	Triangle(Triangle* t) : Triangle(t->p0, t->p1, t->p2) {}
 
 	// Check if point q is inside of the triangle, store barycentric coordinates in w
-	int isInside(Point *q, double *w) { // https://stackoverflow.com/questions/2049582/how-to-determine-if-a-point-is-in-a-2d-triangle
+	inline int isInside(Point *q, double *w) { // https://stackoverflow.com/questions/2049582/how-to-determine-if-a-point-is-in-a-2d-triangle
 		double sign = area >= 0 ? +1. : -1.;
-		w[1] = sign * (p0->y * p2->x - p0->x * p2->y + (p2->y - p0->y) * q->x + (p0->x - p2->x) * q->y);
-		w[2] = sign * (p0->x * p1->y - p0->y * p1->x + (p0->y - p1->y) * q->x + (p1->x - p0->x) * q->y);
+		w[1] = sign * (p[0]->y * p[2]->x - p[0]->x * p[2]->y + (p[2]->y - p[0]->y) * q->x + (p[0]->x - p[2]->x) * q->y);
+		w[2] = sign * (p[0]->x * p[1]->y - p[0]->y * p[1]->x + (p[0]->y - p[1]->y) * q->x + (p[1]->x - p[0]->x) * q->y);
 		w[0] = (2. * area * sign) - w[1] - w[2];
 
-		for (int i = 0; i < 3; ++i) {
-			if (w[i] < TOL && w[i] > -TOL)
-				w[i] = 0.;
-		}
+		if (w[0] < TOL && w[0] > -TOL) w[0] = 0.;
+		if (w[1] < TOL && w[1] > -TOL) w[1] = 0.;
+		if (w[2] < TOL && w[2] > -TOL) w[2] = 0.;
 		
 		return w[0] >= 0. && w[1] >= 0. && w[2] >= 0.;
 	}
 
 	// Check if point q lies in circumscribed circle of the triangle
-	bool inCircle(Point* q) { // https://stackoverflow.com/questions/39984709/how-can-i-check-wether-a-point-is-inside-the-circumcircle-of-3-points
+	inline bool inCircle(Point* q) { // https://stackoverflow.com/questions/39984709/how-can-i-check-wether-a-point-is-inside-the-circumcircle-of-3-points
 		double d0x = p[0]->x - q->x;
 		double d0y = p[0]->y - q->y;
 		double d1x = p[1]->x - q->x;
@@ -69,11 +66,11 @@ public:
 class Node {
 public:
 	Triangle tri;
-	bool hasChildren = false;
+	int numChildren = 0;
 	Node* child[3] = { nullptr };
 	Node* neighbor[3] = { nullptr };
-
-	bool processed = false;
+	
+	bool processed = false; // Flag for mesh extraction
 
 	Node(Point* p0, Point* p1, Point* p2) : tri{ p0, p1, p2 } {}
 
@@ -137,11 +134,11 @@ public:
 			n2->neighbor[1] = neighbor[M1(edge)];
 			n2->neighbor[2] = n1;
 
-			hasChildren = true;
-			child[0] = n1;
-			child[1] = n2;
+			this->numChildren = 2;
+			this->child[0] = n1;
+			this->child[1] = n2;
 
-			neigh->hasChildren = true;
+			neigh->numChildren = 2;
 			neigh->child[0] = n2;
 			neigh->child[1] = n1;
 
@@ -157,6 +154,8 @@ public:
 
 private:
 	void _split2(Point* p, int edge) {
+		this->numChildren = 2;
+
 		int i0 = edge, i1 = (edge + 1) % 3, i2 = (edge + 2) % 3;
 		child[0] = new Node(p, tri.p[i2], tri.p[i0]);
 		child[1] = new Node(p, tri.p[i0], tri.p[i1]);
@@ -168,7 +167,5 @@ private:
 
 		child[0]->updateNeigbors(this);
 		child[1]->updateNeigbors(this);
-
-		this->hasChildren = true;
 	}
 };

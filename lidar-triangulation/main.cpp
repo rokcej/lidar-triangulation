@@ -15,7 +15,7 @@
 #include "laswriter.hpp"
 
 #define DEBUG false
-#define MAX_POINTS 1000000 // Set to 0 to disable limit
+#define MAX_POINTS 10000000 // Set to 0 to disable limit
 
 // Check if point x lies between points a and b
 bool between(Point* a, Point* b, Point* x) {
@@ -32,10 +32,10 @@ void getFaces(Node *node, std::vector<Face>& faces, Point *points) {
 		return;
 	node->processed = true;
 
-	if (node->hasChildren) {
+	if (node->numChildren > 0) {
 		getFaces(node->child[0], faces, points);
 		getFaces(node->child[1], faces, points);
-		if (node->child[2] != nullptr)
+		if (node->numChildren > 2)
 			getFaces(node->child[2], faces, points);
 	} else {
 		int v1 = node->tri.p[0]->idx;
@@ -163,13 +163,6 @@ int main() {
 					std::cout << "Point on the edge of bounding triangle!" << std::endl;
 				else
 					std::cout << "Point outside bounding triangle!" << std::endl;
-
-				std::cout << "Point: " << points[i].x << ", " << points[i].y << std::endl;
-				std::cout << "Baricentric weights: " << w[0] << ", " << w[1] << ", " << w[2] << std::endl;
-				std::cout << "Triangle point 1: " << triBound.p0->x << ", " << triBound.p0->y << std::endl;
-				std::cout << "Triangle point 2: " << triBound.p1->x << ", " << triBound.p1->y << std::endl;
-				std::cout << "Triangle point 3: " << triBound.p2->x << ", " << triBound.p2->y << std::endl;
-
 				return 1;
 			}
 		}
@@ -190,30 +183,13 @@ int main() {
 		Point* p = &(points[iPoint]);
 		Node* n = root;
 		double w[3];
-		while (n->hasChildren) {
+		while (n->numChildren > 0) {
 			if (n->child[0]->tri.isInside(p, w)) n = n->child[0];
 			else if (n->child[1]->tri.isInside(p, w)) n = n->child[1];
-			else if (n->child[2] != nullptr && n->child[2]->tri.isInside(p, w)) n = n->child[2];
+			else if (n->numChildren > 2 && n->child[2]->tri.isInside(p, w)) n = n->child[2];
 			else {
 				std::cout << "ERROR: Point " << iPoint << " not inside any triangle!" << std::endl;
-				std::cout << "Parent: " << n->tri.isInside(p, w) << ", " << n->tri.p0->idx << " " << n->tri.p1->idx << " " << n->tri.p2->idx << std::endl;
-				std::cout << "Child 1: " << n->child[0]->tri.isInside(p, w) << ", " << n->child[0]->tri.p0->idx << " " << n->child[0]->tri.p1->idx << " " << n->child[0]->tri.p2->idx;
-				std::cout << "; " << w[0] << ", " << w[1] << ", " << w[2] << std::endl;
-				std::cout << "Child 2: " << n->child[1]->tri.isInside(p, w) << ", " << n->child[1]->tri.p0->idx << " " << n->child[1]->tri.p1->idx << " " << n->child[1]->tri.p2->idx;
-				std::cout << "; " << w[0] << ", " << w[1] << ", " << w[2] << std::endl;
-				if (n->child[2] != nullptr)
-					std::cout << "Child 3: " << n->child[2]->tri.isInside(p, w) << ", " << n->child[2]->tri.p0->idx << " " << n->child[2]->tri.p1->idx << " " << n->child[2]->tri.p2->idx << std::endl;
-
-				bool check = n->tri.isInside(n->child[0]->tri.p[0], w);
-				std::cout << check << "Common point: " << w[0] << ", " << w[1] << ", " << w[2] << std::endl;
-
 				return 1;
-			}
-		}
-
-		if (DEBUG) {
-			if (n->child[0] != nullptr || n->child[1] != nullptr || n->child[2] != nullptr) {
-				std::cout << "ERROR: Child existence mismatch" << std::endl;
 			}
 		}
 
@@ -224,6 +200,8 @@ int main() {
 
 		// Add point to triangle
 		if (n == root || w[0] != 0. && w[1] != 0. && w[2] != 0.)  { // Point inside of triangle
+			n->numChildren = 3;
+
 			// Create new triangles
 			for (int i = 0; i < 3; ++i)
 				n->child[i] = new Node(p, n->tri.p[M1(i)], n->tri.p[M2(i)]);
@@ -253,7 +231,6 @@ int main() {
 					n->neighbor[edge]->child[i]->validate(0);
 			}
 		}
-		n->hasChildren = true;
 	}
 	
 	// Extract triangles
