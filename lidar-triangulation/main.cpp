@@ -14,6 +14,9 @@
 #include "lasreader.hpp"
 #include "laswriter.hpp"
 
+#define INPUT_FILE "GK_462_100.laz"
+#define OUTPUT_FILE "mesh.obj"
+
 #define DEBUG false
 #define MAX_POINTS 0 // Set to 0 to disable limit
 
@@ -77,7 +80,7 @@ int main() {
 	// Read LiDAR data
 	std::cout << "Reading data ..." << std::endl;
 	LASreadOpener lasreadopener;
-	lasreadopener.set_file_name("GK_462_100.laz");
+	lasreadopener.set_file_name(INPUT_FILE);
 	LASreader* lasreader = lasreadopener.open();
 
 	int numPoints = (int)lasreader->npoints;
@@ -240,7 +243,7 @@ int main() {
 
 	// Export mesh
 	std::cout << "Saving .obj file ..." << std::endl;
-	saveObj("mesh.obj", points, numPoints, faces);
+	saveObj(OUTPUT_FILE, points, numPoints, faces);
 
 	std::cout << "Done!" << std::endl;
 
