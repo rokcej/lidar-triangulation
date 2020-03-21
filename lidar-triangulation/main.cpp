@@ -15,7 +15,7 @@
 #include "laswriter.hpp"
 
 #define DEBUG false
-#define MAX_POINTS 10000000 // Set to 0 to disable limit
+#define MAX_POINTS 0 // Set to 0 to disable limit
 
 // Check if point x lies between points a and b
 bool between(Point* a, Point* b, Point* x) {
@@ -65,6 +65,14 @@ void saveObj(std::string filename, Point *points, int numPoints, std::vector<Fac
 	file.close();
 }
 
+// Print loading progress
+void printProgress(int current, int total) {
+	if ((current & (0x1FFF)) == 0) {
+		printf("%.2f%%\r", 100.f * (float)current / (float)total);
+		fflush(stdout);
+	}
+}
+
 int main() {
 	// Read LiDAR data
 	std::cout << "Reading data ..." << std::endl;
@@ -77,11 +85,7 @@ int main() {
 	Point* points = new Point[numPoints];
 
 	for (int i = 0; i < numPoints && lasreader->read_point(); ++i) {
-		// Print progress
-		if (i % 10000 == 0) {
-			printf("%.2f%%\r", 100.f * (float)i / (float)numPoints);
-			fflush(stdout);
-		}
+		printProgress(i, numPoints);
 
 		// Convert from centimeters to meters
 		points[i] = Point(
@@ -173,11 +177,7 @@ int main() {
 
 	// Incrementally add points to DT
 	for (int iPoint = 0; iPoint < numPoints; ++iPoint) {
-		// Print progress
-		if (iPoint % 10000 == 0) {
-			printf("%.2f%%\r", 100.f * (float)iPoint / (float)numPoints);
-			fflush(stdout);
-		}
+		printProgress(iPoint, numPoints);
 
 		// Find triangle in which the point lies
 		Point* p = &(points[iPoint]);

@@ -2,17 +2,19 @@
 
 #include <iostream>
 
-#define TOL (1e-8)
+#define TOL (1e-8) // Precision tolerance
 
-inline int M1(const int& x) { return (x + 1) % 3; }
-inline int M2(const int& x) { return (x + 2) % 3; }
+inline int M1(const int& x) { return (x + 1) % 3; } // Plus 1 mod 3
+inline int M2(const int& x) { return (x + 2) % 3; } // Plus 2 mod 3
 
+// Mesh face structure
 struct Face {
 	int v1, v2, v3;
 
 	Face(int v1, int v2, int v3) : v1{ v1 }, v2{ v2 }, v3{ v3 } {}
 };
 
+// 3D point structure
 struct Point {
 	double x = 0., y = 0., z = 0.;
 	int idx = -1;
@@ -21,6 +23,7 @@ struct Point {
 	Point(double x, double y, double z, int idx) : x{ x }, y{ y }, z{ z }, idx{ idx } {}
 };
 
+// Triangle structure
 class Triangle {
 public:
 	Point *p[3];
@@ -63,6 +66,7 @@ public:
 	}
 };
 
+// Delaunay tree structure
 class Node {
 public:
 	Triangle tri;
