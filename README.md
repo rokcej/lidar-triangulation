@@ -19,7 +19,7 @@ You can change the following `#define`s to configure how the program works.
 * **`MAX_POINTS`** - Maximum number of points to use (set to `0` to disable the limit)
 * **`DEBUG`** - Run in debug mode
 
-# Dependencies
+## Dependencies
 
 * **LAStools** (LASlib and LASzip) - Library for parsing `.laz`/`.las` LiDAR files
 
